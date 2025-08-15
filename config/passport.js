@@ -1,11 +1,13 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/userModel'); // Import User model
+   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:5000/auth/google/callback" // ✅ Full URL
+    callbackURL: `${API_URL}/auth/google/callback` // ✅ Full URL
 }, async (accessToken, refreshToken, profile, done) => {
     try {
         // ✅ Check if user exists in DB
