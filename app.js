@@ -22,7 +22,7 @@ app.set('trust proxy', 1);
 
 // ---- CORS (env-driven) ----
 const allowedOrigins = [
-  'https://ai-powered-frontend.vercel.app/',
+  'http://localhost:5173',
   process.env.FRONTEND_URL,                 // e.g. https://your-frontend.vercel.app
 ].filter(Boolean);
 
