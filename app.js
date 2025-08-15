@@ -1,44 +1,62 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') }); // ✅ load env first
+
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
-const connectDB = require('./config/db');
-const { initGridFS } = require('./utils/gridfs');
 const session = require('express-session');
 const passport = require('passport');
+
+const connectDB = require('./config/db');
+const { initGridFS } = require('./utils/gridfs');
 require('./config/passport'); // Google OAuth Strategy
 
 const videoRoutes = require('./routes/videoRoutes');
 const storyRoutes = require('./routes/storyRoutes');
-const authRoutes = require('./routes/authRoutes'); // ✅ New route for Google OAuth
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+// Trust Render proxy (for secure cookies if you enable them)
+app.set('trust proxy', 1);
+
+// ---- CORS (env-driven) ----
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,                 // e.g. https://your-frontend.vercel.app
+].filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
+// ---- Basic middleware ----
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Session & Passport
+// ---- Session & Passport ----
 app.use(session({
   secret: process.env.SESSION_SECRET || 'supersecretkey',
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+  // cookie: { secure: true, sameSite: 'none' } // uncomment when you use HTTPS + cookies across domains
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Connect DB and initialize GridFS
+// ---- Health check (Render uses this) ----
+app.get('/healthz', (_req, res) => res.status(200).send('OK'));
+
+// ---- DB + GridFS + routes ----
 connectDB()
   .then((connection) => {
-    initGridFS(connection); // ✅ GridFS initialized after DB is ready
+    initGridFS(connection);
 
-    // Routes
     app.use('/api/videos', videoRoutes);
     app.use('/api/stories', storyRoutes);
-    app.use('/auth', authRoutes); // ✅ Google OAuth routes
+    app.use('/auth', authRoutes);
 
-    // Start server
     app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
     });
