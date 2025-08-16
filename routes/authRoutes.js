@@ -42,19 +42,5 @@ router.get('/logout', (req, res, next) => {
   });
 });
 
-// Who am I?
-router.get('/user', (req, res) => {
-  if (!req.isAuthenticated || !req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Not logged in' });
-  }
-  const u = req.user || {};
-  res.json({
-    id: u._id,
-    googleId: u.googleId,
-    displayName: u.displayName,
-    email: u.email,
-    photo: u.photo,
-  });
-});
 
 module.exports = router;
