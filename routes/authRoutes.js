@@ -1,50 +1,60 @@
+// backend/routes/authRoutes.js
 const express = require('express');
 const passport = require('passport');
+
 const router = express.Router();
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+// Health/ready
+router.get('/', (_req, res) => res.status(200).json({ ok: true }));
 
-router.get('/',
-    (req, res) => {
-       res.status(200).json({ ok: true });
-    }
+// Start Google OAuth
+router.get('/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-// ✅ Start Google OAuth login
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-// ✅ Callback after Google login
-router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: '/' }),
-    (req, res) => {
-        // ✅ Redirect to frontend after successful login
-        res.redirect('http://localhost:5173');
-    }
-);
-
-// ✅ Logout and clear session
-router.get('/logout', (req, res, next) => {
-    req.logout(err => {
-        if (err) return next(err);
-        req.session.destroy(() => {
-            res.clearCookie('connect.sid'); // Clear session cookie
-            res.redirect('http://localhost:5173'); // Redirect to frontend
-        });
-    });
+// Optional failure route (nice UX)
+router.get('/failure', (_req, res) => {
+  res.redirect(`${FRONTEND_URL}/login?auth=failure`);
 });
 
-// ✅ Check if user is authenticated
+// Google OAuth callback
+router.get('/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: `${FRONTEND_URL}/login?auth=failure`,
+    session: true,
+  }),
+  (req, res) => {
+    // Success → send the user back to the frontend (Vercel)
+    res.redirect(FRONTEND_URL);
+  }
+);
+
+// Logout & clear session cookie
+router.get('/logout', (req, res, next) => {
+  req.logout(err => {
+    if (err) return next(err);
+    req.session.destroy(() => {
+      // Must match the cookie name from app.js (name: 'sid')
+      res.clearCookie('sid', { path: '/' });
+      res.redirect(FRONTEND_URL);
+    });
+  });
+});
+
+// Who am I?
 router.get('/user', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.json({
-            id: req.user._id,
-            googleId: req.user.googleId,
-            displayName: req.user.displayName,
-            email: req.user.email,
-            photo: req.user.photo
-        });
-    } else {
-        res.status(401).json({ message: 'Not logged in' });
-    }
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Not logged in' });
+  }
+  const u = req.user || {};
+  res.json({
+    id: u._id,
+    googleId: u.googleId,
+    displayName: u.displayName,
+    email: u.email,
+    photo: u.photo,
+  });
 });
 
 module.exports = router;
